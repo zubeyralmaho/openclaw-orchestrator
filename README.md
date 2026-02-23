@@ -21,6 +21,26 @@ Break down complex goals into tasks, route them to specialized agents, and itera
                      results fed back
 ```
 
+## Why Multi-Agent Orchestration?
+
+Most AI frameworks give a single agent access to everything — all tools, all data, all permissions. That's convenient but fundamentally insecure and inefficient.
+
+**Isolated capabilities by design.** Each agent on the gateway runs in its own sandbox with only the tools it needs. A researcher agent has web search but can't execute code. A coder agent has a bash shell but can't access your database. An analyst has neither — it just reasons over data passed to it. No single agent has the keys to the kingdom.
+
+**Better security posture.** When a coding task goes to an agent that can only write code (not browse the web or call APIs), the blast radius of a prompt injection or hallucination is contained. This is the principle of least privilege applied to AI agents.
+
+**Specialization beats generalization.** Agents configured with focused system prompts (SOUL.md) and specific tool access (TOOLS.md) outperform a single general-purpose agent on domain tasks. A researcher with Brave Search and instructions to cite sources produces better research than a do-everything agent asked to "also search the web."
+
+**The orchestrator coordinates, agents execute.** The LLM planner sees each agent's description and capabilities, then routes tasks to the right specialist. It doesn't need tool access itself — it just decides *what* to do and *who* should do it. Agents don't need to know about each other — they just receive a task and return a result.
+
+```
+Orchestrator (LLM planner, no tools)
+  ├── researcher  [web-search, browser]        — finds information
+  ├── coder       [bash, file-ops]             — writes and tests code
+  ├── analyst     [no tools, reasoning only]   — compares and recommends
+  └── main        [general]                    — fallback for everything else
+```
+
 ## Features
 
 - **Adaptive loop** — LLM decides what to do next based on accumulated results, not a rigid pre-planned DAG
