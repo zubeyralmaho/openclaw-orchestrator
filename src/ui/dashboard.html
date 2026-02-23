@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw Orchestrator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --surface2: #16213e;
+      --border: #2d3748;
+      --text: #e2e8f0;
+      --text-dim: #a0aec0;
+      --accent: #6366f1;
+      --pending: #4a5568;
+      --running: #2563eb;
+      --done: #16a34a;
+      --failed: #dc2626;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    #connection-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    #connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--pending);
+      transition: background 0.3s;
+    }
+
+    #connection-dot.connected { background: var(--done); }
+    #connection-dot.disconnected { background: var(--failed); }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    section h2 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    .hidden { display: none !important; }
+
+    /* ---- Goal form ---- */
+    #goal-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      padding: 12px;
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    #goal-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .form-row label {
+      font-size: 12px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .form-row input[type="number"] {
+      width: 60px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 4px 8px;
+    }
+
+    #submit-btn {
+      margin-left: auto;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 24px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    #submit-btn:hover { opacity: 0.9; }
+    #submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ---- State banner ---- */
+    #state-banner {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 12px 20px;
+    }
+
+    #state-banner.thinking { background: #1e3a5f; border-color: var(--running); color: #93c5fd; }
+    #state-banner.executing { background: #1e3a5f; border-color: var(--running); color: #93c5fd; }
+    #state-banner.done { background: #052e16; border-color: var(--done); color: #86efac; }
+    #state-banner.error { background: #450a0a; border-color: var(--failed); color: #fca5a5; }
+
+    /* ---- Step timeline ---- */
+    #steps-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .thinking-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      color: #93c5fd;
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--surface2);
+      border: 1px dashed #334155;
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+    }
+
+    .thinking-dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .thinking-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #93c5fd;
+      animation: thinking-bounce 1.4s ease-in-out infinite;
+    }
+
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes thinking-bounce {
+      0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+      40% { opacity: 1; transform: scale(1); }
+    }
+
+    .step-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .step-card.step-complete {
+      border-color: #1e4d2b;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .step-number {
+      color: var(--accent);
+    }
+
+    .step-task-count {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-dim);
+    }
+
+    .step-status-badge {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .step-status-badge.running { background: #1e3a5f; color: #93c5fd; }
+    .step-status-badge.complete { background: #052e16; color: #86efac; }
+
+    .step-tasks {
+      padding: 8px 0;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 16px;
+      font-size: 12px;
+      transition: background 0.15s;
+    }
+
+    .task-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .task-status-dot {
+      width: 10px;
+      height: 10px;
+      min-width: 10px;
+      border-radius: 50%;
+      margin-top: 4px;
+      transition: background 0.3s;
+    }
+
+    .task-status-dot.pending { background: var(--pending); }
+    .task-status-dot.running { background: var(--running); animation: pulse 1.5s ease-in-out infinite; }
+    .task-status-dot.done { background: var(--done); }
+    .task-status-dot.failed { background: var(--failed); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.5); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0); }
+    }
+
+    .task-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-id {
+      font-weight: 600;
+      color: var(--text);
+      margin-right: 8px;
+    }
+
+    .task-desc {
+      color: var(--text-dim);
+    }
+
+    .task-output-toggle {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--accent);
+      cursor: pointer;
+      user-select: none;
+      border: none;
+      background: none;
+      font-family: inherit;
+      padding: 0;
+    }
+
+    .task-output-toggle:hover {
+      text-decoration: underline;
+    }
+
+    .task-output {
+      margin-top: 6px;
+      font-size: 11px;
+      background: var(--surface2);
+      border-radius: 4px;
+      padding: 10px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+    }
+
+    .task-result-badge {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-top: 4px;
+      display: inline-block;
+    }
+
+    .task-result-badge.ok { background: #052e16; color: #86efac; }
+    .task-result-badge.error { background: #450a0a; color: #fca5a5; }
+    .task-result-badge.timeout { background: #451a03; color: #fed7aa; }
+
+    /* ---- Legend ---- */
+    .legend {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* ---- Final answer ---- */
+    #final-answer-output {
+      font-size: 13px;
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 16px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 500px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    /* ---- Run history ---- */
+    #history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      padding: 8px 10px;
+      background: var(--bg);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .history-item:hover { background: var(--surface2); }
+    .history-item.active { border-left: 3px solid var(--accent); }
+
+    .history-goal {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .history-time {
+      font-size: 10px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .history-state {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .history-state.done { background: #052e16; color: #86efac; }
+    .history-state.error { background: #450a0a; color: #fca5a5; }
+    .history-state.executing,
+    .history-state.thinking { background: #1e3a5f; color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>OpenClaw Orchestrator</h1>
+    <div id="connection-status">
+      <div id="connection-dot"></div>
+      <span id="connection-label">connecting...</span>
+    </div>
+  </header>
+
+  <main>
+    <section id="goal-panel">
+      <h2>Goal</h2>
+      <form id="goal-form">
+        <textarea id="goal-input" placeholder="Describe what you want to accomplish..." rows="3"></textarea>
+        <div class="form-row">
+          <label>Concurrency: <input type="number" id="concurrency" value="8" min="1" max="32"></label>
+          <button type="submit" id="submit-btn">Run</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="state-banner" class="hidden"></section>
+
+    <section id="steps-panel" class="hidden">
+      <h2>Step Timeline</h2>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--pending)"></div>Pending</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--running);animation:pulse 1.5s ease-in-out infinite"></div>Running</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--done)"></div>Done</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--failed)"></div>Failed</div>
+      </div>
+      <div id="steps-container"></div>
+    </section>
+
+    <section id="final-answer-panel" class="hidden">
+      <h2>Final Answer</h2>
+      <div id="final-answer-output"></div>
+    </section>
+
+    <section id="history-panel" class="hidden">
+      <h2>Run History</h2>
+      <div id="history-list"></div>
+    </section>
+  </main>
+
+  <script>
+  (function() {
+    "use strict";
+
+    // ================================================================
+    // STATE
+    // ================================================================
+    var currentRunId = null;
+    var eventSource = null;
+
+    // Map of stepNumber -> { tasks: Map<taskId, { id, task, status, result }> }
+    var stepsData = {};
+
+    // ================================================================
+    // SSE CONNECTION
+    // ================================================================
+    function connectSSE() {
+      eventSource = new EventSource("/api/events");
+      eventSource.onmessage = function(e) {
+        try {
+          handleEvent(JSON.parse(e.data));
+        } catch (err) {
+          console.error("SSE parse error:", err);
+        }
+      };
+      eventSource.onopen = function() { updateConnection(true); };
+      eventSource.onerror = function() { updateConnection(false); };
+    }
+
+    function updateConnection(connected) {
+      var dot = document.getElementById("connection-dot");
+      var label = document.getElementById("connection-label");
+      dot.className = connected ? "connected" : "disconnected";
+      label.textContent = connected ? "connected" : "reconnecting...";
+    }
+
+    // ================================================================
+    // EVENT HANDLING
+    // ================================================================
+    function handleEvent(event) {
+      if (event.runId !== currentRunId) return;
+
+      switch (event.type) {
+        case "run:started":
+          showBanner("thinking", "Thinking...");
+          showThinkingIndicator();
+          show("steps-panel");
+          break;
+
+        case "step:thinking":
+          showBanner("thinking", "Thinking... (deciding step " + event.stepNumber + ")");
+          showThinkingIndicator();
+          break;
+
+        case "step:started":
+          removeThinkingIndicator();
+          showBanner("executing", "Executing step " + event.stepNumber + "...");
+          addStepCard(event.stepNumber, event.taskIds, event.tasks);
+          show("steps-panel");
+          break;
+
+        case "task:started":
+          updateTaskStatus(event.stepNumber, event.taskId, "running");
+          break;
+
+        case "task:ended":
+          updateTaskStatus(event.stepNumber, event.taskId, event.status, event.result);
+          break;
+
+        case "step:ended":
+          markStepComplete(event.stepNumber);
+          break;
+
+        case "run:complete":
+          removeThinkingIndicator();
+          var durSec = (event.durationMs / 1000).toFixed(1);
+          showBanner("done", "Completed in " + durSec + "s");
+          if (event.answer) {
+            showFinalAnswer(event.answer);
+          }
+          document.getElementById("submit-btn").disabled = false;
+          updateHistory();
+          break;
+
+        case "run:error":
+          removeThinkingIndicator();
+          showBanner("error", "Error: " + event.error);
+          document.getElementById("submit-btn").disabled = false;
+          updateHistory();
+          break;
+      }
+    }
+
+    // ================================================================
+    // STEP TIMELINE RENDERING
+    // ================================================================
+    function showThinkingIndicator() {
+      removeThinkingIndicator();
+      var container = document.getElementById("steps-container");
+      var indicator = document.createElement("div");
+      indicator.id = "thinking-indicator";
+      indicator.className = "thinking-indicator";
+      indicator.innerHTML =
+        '<div class="thinking-dots"><span></span><span></span><span></span></div>' +
+        '<span>Thinking...</span>';
+      container.appendChild(indicator);
+      scrollIntoViewIfNeeded(indicator);
+    }
+
+    function removeThinkingIndicator() {
+      var el = document.getElementById("thinking-indicator");
+      if (el) el.remove();
+    }
+
+    function addStepCard(stepNumber, taskIds, taskDetails) {
+      // Store step data — use task details if available
+      var tasks = {};
+      for (var i = 0; i < taskIds.length; i++) {
+        var detail = taskDetails && taskDetails[i];
+        tasks[taskIds[i]] = {
+          id: taskIds[i],
+          task: detail ? detail.task : "",
+          agent: detail ? detail.agent : undefined,
+          status: "pending",
+          result: null,
+        };
+      }
+      stepsData[stepNumber] = { tasks: tasks };
+
+      var container = document.getElementById("steps-container");
+
+      var card = document.createElement("div");
+      card.className = "step-card";
+      card.id = "step-card-" + stepNumber;
+
+      var header = document.createElement("div");
+      header.className = "step-header";
+      header.innerHTML =
+        '<span><span class="step-number">Step ' + stepNumber + '</span> ' +
+        '<span class="step-task-count">(' + taskIds.length + ' task' + (taskIds.length !== 1 ? 's' : '') + ')</span></span>' +
+        '<span class="step-status-badge running">running</span>';
+
+      var tasksList = document.createElement("div");
+      tasksList.className = "step-tasks";
+      tasksList.id = "step-tasks-" + stepNumber;
+
+      for (var i = 0; i < taskIds.length; i++) {
+        var detail = taskDetails && taskDetails[i];
+        tasksList.appendChild(createTaskItem(
+          taskIds[i],
+          detail ? detail.task : "",
+          "pending",
+          detail ? detail.agent : undefined
+        ));
+      }
+
+      card.appendChild(header);
+      card.appendChild(tasksList);
+      container.appendChild(card);
+
+      scrollIntoViewIfNeeded(card);
+    }
+
+    function createTaskItem(taskId, taskDesc, status, agentName) {
+      var item = document.createElement("div");
+      item.className = "task-item";
+      item.id = "task-item-" + sanitizeId(taskId);
+
+      var dot = document.createElement("div");
+      dot.className = "task-status-dot " + status;
+      dot.id = "task-dot-" + sanitizeId(taskId);
+
+      var info = document.createElement("div");
+      info.className = "task-info";
+
+      var line = document.createElement("div");
+      var idSpan = document.createElement("span");
+      idSpan.className = "task-id";
+      idSpan.textContent = taskId;
+      line.appendChild(idSpan);
+
+      if (agentName) {
+        var agentSpan = document.createElement("span");
+        agentSpan.style.cssText = "font-size:0.7em;color:var(--accent);margin-left:6px;opacity:0.8";
+        agentSpan.textContent = "[" + agentName + "]";
+        line.appendChild(agentSpan);
+      }
+
+      if (taskDesc) {
+        var descSpan = document.createElement("span");
+        descSpan.className = "task-desc";
+        descSpan.textContent = taskDesc;
+        line.appendChild(descSpan);
+      }
+
+      info.appendChild(line);
+
+      var outputContainer = document.createElement("div");
+      outputContainer.id = "task-output-container-" + sanitizeId(taskId);
+
+      info.appendChild(outputContainer);
+
+      item.appendChild(dot);
+      item.appendChild(info);
+      return item;
+    }
+
+    function updateTaskStatus(stepNumber, taskId, status, result) {
+      // Update stored data
+      if (stepsData[stepNumber] && stepsData[stepNumber].tasks[taskId]) {
+        stepsData[stepNumber].tasks[taskId].status = status;
+        if (result) stepsData[stepNumber].tasks[taskId].result = result;
+      }
+
+      // Update dot
+      var dot = document.getElementById("task-dot-" + sanitizeId(taskId));
+      if (dot) {
+        dot.className = "task-status-dot " + status;
+      }
+
+      // If done/failed and we have a result, show output toggle
+      if (result && (status === "done" || status === "failed")) {
+        var outputContainer = document.getElementById("task-output-container-" + sanitizeId(taskId));
+        if (outputContainer && !outputContainer.hasChildNodes()) {
+          renderTaskResult(outputContainer, taskId, result);
+        }
+      }
+    }
+
+    function renderTaskResult(container, taskId, result) {
+      var badge = document.createElement("span");
+      badge.className = "task-result-badge " + result.status;
+      badge.textContent = result.status;
+      container.appendChild(badge);
+
+      if (result.output) {
+        var toggleId = "toggle-" + sanitizeId(taskId);
+        var outputId = "output-" + sanitizeId(taskId);
+
+        var toggle = document.createElement("button");
+        toggle.className = "task-output-toggle";
+        toggle.id = toggleId;
+        toggle.textContent = "Show output";
+        toggle.addEventListener("click", function() {
+          var outputEl = document.getElementById(outputId);
+          if (!outputEl) return;
+          var visible = outputEl.style.display !== "none";
+          outputEl.style.display = visible ? "none" : "block";
+          toggle.textContent = visible ? "Show output" : "Hide output";
+        });
+
+        var outputPre = document.createElement("pre");
+        outputPre.className = "task-output";
+        outputPre.id = outputId;
+        outputPre.style.display = "none";
+        outputPre.textContent = result.output;
+
+        container.appendChild(document.createElement("br"));
+        container.appendChild(toggle);
+        container.appendChild(outputPre);
+      }
+    }
+
+    function markStepComplete(stepNumber) {
+      var card = document.getElementById("step-card-" + stepNumber);
+      if (!card) return;
+      card.classList.add("step-complete");
+
+      var badge = card.querySelector(".step-status-badge");
+      if (badge) {
+        badge.className = "step-status-badge complete";
+        badge.textContent = "complete";
+      }
+    }
+
+    // ================================================================
+    // FINAL ANSWER
+    // ================================================================
+    function showFinalAnswer(text) {
+      document.getElementById("final-answer-output").textContent = text;
+      show("final-answer-panel");
+      scrollIntoViewIfNeeded(document.getElementById("final-answer-panel"));
+    }
+
+    // ================================================================
+    // GOAL SUBMISSION
+    // ================================================================
+    document.getElementById("goal-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      var goal = document.getElementById("goal-input").value.trim();
+      if (!goal) return;
+
+      resetPanels();
+      var body = {
+        goal: goal,
+        maxConcurrency: parseInt(document.getElementById("concurrency").value, 10) || 8,
+      };
+
+      document.getElementById("submit-btn").disabled = true;
+
+      fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        currentRunId = data.runId;
+      })
+      .catch(function(err) {
+        showBanner("error", "Failed to submit: " + err.message);
+        document.getElementById("submit-btn").disabled = false;
+      });
+    });
+
+    // ================================================================
+    // HISTORY
+    // ================================================================
+    function updateHistory() {
+      fetch("/api/runs")
+        .then(function(r) { return r.json(); })
+        .then(function(runs) {
+          if (!runs.length) return;
+          show("history-panel");
+          var list = document.getElementById("history-list");
+          list.innerHTML = "";
+          for (var i = 0; i < runs.length; i++) {
+            var run = runs[i];
+            var item = document.createElement("div");
+            item.className = "history-item" + (run.runId === currentRunId ? " active" : "");
+
+            var stateSpan = document.createElement("span");
+            stateSpan.className = "history-state " + esc(run.state);
+            stateSpan.textContent = run.state;
+
+            var goalSpan = document.createElement("span");
+            goalSpan.className = "history-goal";
+            goalSpan.textContent = run.goal;
+
+            var timeSpan = document.createElement("span");
+            timeSpan.className = "history-time";
+            if (run.startedAt) {
+              timeSpan.textContent = formatTime(run.startedAt);
+            }
+
+            item.appendChild(stateSpan);
+            item.appendChild(goalSpan);
+            item.appendChild(timeSpan);
+
+            item.addEventListener("click", (function(rid) {
+              return function() { loadRun(rid); };
+            })(run.runId));
+            list.appendChild(item);
+          }
+        })
+        .catch(function() {});
+    }
+
+    function loadRun(runId) {
+      fetch("/api/runs/" + runId)
+        .then(function(r) { return r.json(); })
+        .then(function(run) {
+          resetPanels();
+          currentRunId = run.runId;
+
+          // Rebuild steps from run data
+          if (run.steps && run.steps.length) {
+            show("steps-panel");
+            for (var s = 0; s < run.steps.length; s++) {
+              var step = run.steps[s];
+              var taskIds = [];
+              for (var t = 0; t < step.tasks.length; t++) {
+                taskIds.push(step.tasks[t].id);
+              }
+
+              // Store step data
+              var tasksMap = {};
+              for (var t = 0; t < step.tasks.length; t++) {
+                var task = step.tasks[t];
+                tasksMap[task.id] = {
+                  id: task.id,
+                  task: task.task,
+                  status: task.status,
+                  result: task.result || null,
+                };
+              }
+              stepsData[step.stepNumber] = { tasks: tasksMap };
+
+              // Build step card with full info
+              buildStepCardFromData(step);
+            }
+          }
+
+          // Show thinking indicator if still thinking
+          if (run.state === "thinking") {
+            showThinkingIndicator();
+            show("steps-panel");
+          }
+
+          // Final answer
+          if (run.finalAnswer) {
+            showFinalAnswer(run.finalAnswer);
+          }
+
+          // Banner
+          var bannerMsg = run.state;
+          if (run.state === "done") {
+            if (run.finishedAt && run.startedAt) {
+              var dur = ((run.finishedAt - run.startedAt) / 1000).toFixed(1);
+              bannerMsg = "Completed in " + dur + "s";
+            } else {
+              bannerMsg = "Completed";
+            }
+          } else if (run.state === "error") {
+            bannerMsg = "Error: " + (run.error || "unknown");
+          } else if (run.state === "thinking") {
+            bannerMsg = "Thinking...";
+          } else if (run.state === "executing") {
+            bannerMsg = "Executing...";
+          }
+          showBanner(run.state, bannerMsg);
+
+          document.getElementById("submit-btn").disabled =
+            (run.state === "thinking" || run.state === "executing");
+          updateHistory();
+        })
+        .catch(function() {});
+    }
+
+    function buildStepCardFromData(step) {
+      var container = document.getElementById("steps-container");
+
+      var card = document.createElement("div");
+      card.className = "step-card";
+      card.id = "step-card-" + step.stepNumber;
+
+      // Check if all tasks are done
+      var allDone = true;
+      for (var i = 0; i < step.tasks.length; i++) {
+        if (step.tasks[i].status !== "done" && step.tasks[i].status !== "failed") {
+          allDone = false;
+          break;
+        }
+      }
+
+      if (allDone) card.classList.add("step-complete");
+
+      var header = document.createElement("div");
+      header.className = "step-header";
+      header.innerHTML =
+        '<span><span class="step-number">Step ' + step.stepNumber + '</span> ' +
+        '<span class="step-task-count">(' + step.tasks.length + ' task' + (step.tasks.length !== 1 ? 's' : '') + ')</span></span>' +
+        '<span class="step-status-badge ' + (allDone ? 'complete' : 'running') + '">' + (allDone ? 'complete' : 'running') + '</span>';
+
+      var tasksList = document.createElement("div");
+      tasksList.className = "step-tasks";
+      tasksList.id = "step-tasks-" + step.stepNumber;
+
+      for (var i = 0; i < step.tasks.length; i++) {
+        var task = step.tasks[i];
+        var taskItem = createTaskItem(task.id, task.task, task.status, task.agent);
+        tasksList.appendChild(taskItem);
+
+        // If there is a result, render it
+        if (task.result) {
+          var outputContainer = document.getElementById("task-output-container-" + sanitizeId(task.id));
+          if (outputContainer) {
+            renderTaskResult(outputContainer, task.id, task.result);
+          }
+        }
+      }
+
+      card.appendChild(header);
+      card.appendChild(tasksList);
+      container.appendChild(card);
+    }
+
+    // ================================================================
+    // UI HELPERS
+    // ================================================================
+    function show(id) { document.getElementById(id).classList.remove("hidden"); }
+    function hide(id) { document.getElementById(id).classList.add("hidden"); }
+
+    function showBanner(state, msg) {
+      var banner = document.getElementById("state-banner");
+      banner.className = state;
+      banner.textContent = msg;
+      show("state-banner");
+    }
+
+    function resetPanels() {
+      stepsData = {};
+      document.getElementById("steps-container").innerHTML = "";
+      document.getElementById("final-answer-output").textContent = "";
+      hide("state-banner");
+      hide("steps-panel");
+      hide("final-answer-panel");
+    }
+
+    function esc(str) {
+      var div = document.createElement("div");
+      div.textContent = str || "";
+      return div.innerHTML;
+    }
+
+    function sanitizeId(id) {
+      return id.replace(/[^a-zA-Z0-9_-]/g, "_");
+    }
+
+    function scrollIntoViewIfNeeded(el) {
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+
+    function formatTime(ts) {
+      var d = new Date(ts);
+      var h = d.getHours();
+      var m = d.getMinutes();
+      var ampm = h >= 12 ? "pm" : "am";
+      h = h % 12;
+      if (h === 0) h = 12;
+      return h + ":" + (m < 10 ? "0" : "") + m + ampm;
+    }
+
+    // ================================================================
+    // INIT
+    // ================================================================
+    connectSSE();
+    updateHistory();
+  })();
+  </script>
+</body>
+</html>

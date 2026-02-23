@@ -1,0 +1,58 @@
+{
+  "name": "openclaw-orchestrator",
+  "version": "0.1.0",
+  "description": "Adaptive multi-agent orchestration for OpenClaw gateways — LLM-driven task planning, multi-agent routing, and a real-time web dashboard",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "bin": {
+    "openclaw-orchestrator": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc && node -e \"import{cpSync}from'node:fs';cpSync('src/ui/dashboard.html','dist/ui/dashboard.html')\"",
+    "dev": "tsc --watch",
+    "serve": "node dist/cli.js serve",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "tsc --noEmit"
+  },
+  "keywords": [
+    "orchestrator",
+    "agents",
+    "multi-agent",
+    "llm",
+    "openclaw",
+    "ai",
+    "task-planning",
+    "dashboard"
+  ],
+  "author": "zeynepyorulmaz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zeynepyorulmaz/openclaw-orchestrator.git"
+  },
+  "homepage": "https://github.com/zeynepyorulmaz/openclaw-orchestrator",
+  "bugs": {
+    "url": "https://github.com/zeynepyorulmaz/openclaw-orchestrator/issues"
+  },
+  "dependencies": {
+    "commander": "^13.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}
