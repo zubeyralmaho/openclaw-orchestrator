@@ -67,7 +67,7 @@ openclaw-orchestrator run "Compare React and Svelte for dashboards" \
 
 Open `http://localhost:3000` to see the dashboard.
 
-<!-- TODO: Add screenshot of dashboard here -->
+![Dashboard screenshot](docs/dashboard.png)
 
 ## Prerequisites
 
