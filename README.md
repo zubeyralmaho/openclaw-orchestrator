@@ -40,7 +40,9 @@ Orchestrator (LLM planner, no tools)
   ├── analyst     [no tools, reasoning only]   — compares and recommends
   └── main        [general]                    — fallback for everything else
 ```
+## Star History
 
+[![Star History Chart](https://api.star-history.com/svg?repos=zeynepyorulmaz/openclaw-orchestrator&type=date&legend=top-left)](https://www.star-history.com/#zeynepyorulmaz/openclaw-orchestrator&type=date&legend=top-left)
 ## Features
 
 - **Adaptive loop** — LLM decides what to do next based on accumulated results, not a rigid pre-planned DAG
